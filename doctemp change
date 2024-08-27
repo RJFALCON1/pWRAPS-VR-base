@@ -1,74 +1,30 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using TMPro;
-using UnityEngine.UI;
-
-public class PTInspectManager : MonoBehaviour
+private void SavePositionToJson(Vector3 position)
 {
-    [Header("Stand Placeholders")]
-    public GameObject[] standPlaceholders; 
-
-    [Header("Text Instructions")]
-    public TextMeshPro[] standTexts;      
-
-    [Header("Confirmation Button")]
-    public Button confirmPositionButton;
-
-    [Header("Position Logger")]
-    public PositionLogger positionLogger;
-
-    [Header("Patient Data")]
-    public StatsHandler statsHandler;
-
-    [Header("Tracker")]
-    public GameObject chestTracker;
-
-    private int currentStandPositionIndex = 0;
-
-    void Start()
+    // Create a new instance of the TrackerPosition class and populate it with the tracker position data
+    TrackerPosition trackerPosition = new TrackerPosition
     {
-        SetNextStandPosition();
-    }
+        x = position.x,
+        y = position.y,
+        z = position.z
+    };
 
-    void SetNextStandPosition()
-    {
-        if (currentStandPositionIndex >= standPlaceholders.Length)
-        {
-            // Hide all texts and placeholders if calibration is complete
-            foreach (var text in standTexts)
-                text.gameObject.SetActive(false);
+    // Serialize the tracker position data to JSON format
+    string jsonData = JsonUtility.ToJson(trackerPosition);
 
-            foreach (var stand in standPlaceholders)
-                stand.SetActive(false);
+    // Specify the file path where the JSON data will be saved
+    string filePath = Application.dataPath + "/TrackerPositions.json";
 
-            confirmPositionButton.gameObject.SetActive(false);
-            return;
-        }
+    // Write the JSON data to the file, appending it to any existing data
+    File.AppendAllText(filePath, jsonData + "\n");
 
-        // Deactivate all stand placeholders and texts
-        for (int i = 0; i < standPlaceholders.Length; i++)
-        {
-            standPlaceholders[i].SetActive(i == currentStandPositionIndex);
-            standTexts[i].gameObject.SetActive(i == currentStandPositionIndex);
-        }
-
-        // Set instruction text for the current stand
-        standTexts[currentStandPositionIndex].text = "Move the stand here!";
-    }
-
-    public void ConfirmStandPosition()
-    {
-        // Log the position for debugging purposes
-        Vector3 trackerPosition = chestTracker.transform.position;
-        positionLogger.SavePosition(trackerPosition);
-        Debug.Log($"Confirmed tracker position: {trackerPosition}");
-
-        // Move to the next stand
-        currentStandPositionIndex++;
-
-        // Call to update which stand/text is active
-        SetNextStandPosition();
-    }
+    // Log a message to confirm that the position was saved
+    Debug.Log("Position saved to JSON: " + jsonData);
 }
 
+// Class to represent the tracker position data
+private class TrackerPosition
+{
+    public float x; // The X coordinate of the tracker's position
+    public float y; // The Y coordinate of the tracker's position
+    public float z; // The Z coordinate of the tracker's position
+}
