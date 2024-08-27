@@ -3,26 +3,58 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
+public class PositionEntry
+{
+    public string label;
+    public Vector3 position;
+
+    public PositionEntry(string label, Vector3 position)
+    {
+        this.label = label;
+        this.position = position;
+    }
+}
+
+[System.Serializable]
 public class PositionData
 {
-    public List<Vector3> positions = new List<Vector3>();
+    public List<PositionEntry> positions = new List<PositionEntry>();
 }
 
 public class PositionLogger : MonoBehaviour
 {
     private PositionData positionData = new PositionData();
+    private string folderPath;
     private string filePath;
 
     void Start()
     {
-        filePath = Path.Combine(Application.persistentDataPath, "tracker_positions.json");
+        // Define the folder path within the Assets directory
+        folderPath = Path.Combine(Application.dataPath, "TrackerPositions");
+
+        // Ensure the folder exists; if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Define the file path within the TrackerPositions folder
+        filePath = Path.Combine(folderPath, "tracker_positions.json");
     }
 
-    public void SavePosition(Vector3 position)
+    public void SavePosition(string label, Vector3 position)
     {
-        positionData.positions.Add(position);
+        PositionEntry entry = new PositionEntry(label, position);
+        positionData.positions.Add(entry);
+
+        // Serialize the position data to JSON
         string jsonData = JsonUtility.ToJson(positionData, true);
+
+        // Write the JSON data to the specified file path
         File.WriteAllText(filePath, jsonData);
-        Debug.Log("Position saved: " + position);
+
+        Debug.Log("Position saved: " + label + " - " + position);
+        Debug.Log("JSON saved at: " + filePath);
     }
 }
+
