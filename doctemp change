@@ -1,60 +1,31 @@
-using System.IO;
-using System.Collections.Generic;
-using UnityEngine;
-
-[System.Serializable]
-public class PositionEntry
+public void ConfirmStandPosition()
 {
-    public string label;
-    public Vector3 position;
+    Vector3 trackerPosition = chestTracker.transform.position;
 
-    public PositionEntry(string label, Vector3 position)
+    // Update the stats based on the current stand position
+    switch (currentStandPositionIndex)
     {
-        this.label = label;
-        this.position = position;
-    }
-}
-
-[System.Serializable]
-public class PositionData
-{
-    public List<PositionEntry> positions = new List<PositionEntry>();
-}
-
-public class PositionLogger : MonoBehaviour
-{
-    private PositionData positionData = new PositionData();
-    private string folderPath;
-    private string filePath;
-
-    void Start()
-    {
-        // Define the folder path within the Assets directory
-        folderPath = Path.Combine(Application.dataPath, "TrackerPositions");
-
-        // Ensure the folder exists; if not, create it
-        if (!Directory.Exists(folderPath))
-        {
-            Directory.CreateDirectory(folderPath);
-        }
-
-        // Define the file path within the TrackerPositions folder
-        filePath = Path.Combine(folderPath, "tracker_positions.json");
+        case 0:
+            statsHandler.playerStats.maxReachE = trackerPosition.x;
+            positionLogger.SavePosition("StandE", trackerPosition);
+            break;
+        case 1:
+            statsHandler.playerStats.maxReachNE = trackerPosition.x;
+            positionLogger.SavePosition("StandNE", trackerPosition);
+            break;
+        case 2:
+            statsHandler.playerStats.maxReachN = trackerPosition.z;
+            positionLogger.SavePosition("StandN", trackerPosition);
+            break;
+        case 3:
+            statsHandler.playerStats.maxReachNW = trackerPosition.x;
+            positionLogger.SavePosition("StandNW", trackerPosition);
+            break;
     }
 
-    public void SavePosition(string label, Vector3 position)
-    {
-        PositionEntry entry = new PositionEntry(label, position);
-        positionData.positions.Add(entry);
+    Debug.Log($"Confirmed tracker position: {trackerPosition}");
+    currentStandPositionIndex++;
+    SetNextStandPosition();
 
-        // Serialize the position data to JSON
-        string jsonData = JsonUtility.ToJson(positionData, true);
-
-        // Write the JSON data to the specified file path
-        File.WriteAllText(filePath, jsonData);
-
-        Debug.Log("Position saved: " + label + " - " + position);
-        Debug.Log("JSON saved at: " + filePath);
-    }
+    confirmPositionButton.onClick.RemoveListener(ConfirmStandPosition);
 }
-
