@@ -1,0 +1,105 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
+
+public class PTInspectManager : MonoBehaviour
+{
+    [Header("Stand Placeholders")]
+    public GameObject[] standPlaceholders; 
+
+    [Header("Text Instructions")]
+    public TextMeshPro[] standTexts;      
+
+    [Header("Confirmation Button")]
+    public Button confirmPositionButton;
+
+    [Header("Position Logger")]
+    public PositionLogger positionLogger;
+
+    [Header("Patient Data")]
+    public StatsHandler statsHandler;
+
+    [Header("Tracker")]
+    public GameObject chestTracker;
+
+    private int currentStandPositionIndex = 0;
+    public Vector3[] standPositions;
+
+    void Start()
+    {
+        InitializeStandPositions();
+        SetNextStandPosition();
+    }
+
+    void InitializeStandPositions()
+    {
+        standPositions = new Vector3[]
+        {
+            new Vector3(statsHandler.playerStats.maxReachE, statsHandler.playerStats.chestHeight, transform.position.z),
+            new Vector3((float)(transform.position.x + statsHandler.playerStats.maxReachNE * Mathf.Cos(Mathf.PI / 4)), statsHandler.playerStats.chestHeight, (float)(transform.position.z + statsHandler.playerStats.maxReachNE * Mathf.Sin(Mathf.PI / 4))),
+            new Vector3(transform.position.x, statsHandler.playerStats.chestHeight, transform.position.z + statsHandler.playerStats.maxReachN),
+            new Vector3((float)(transform.position.x - statsHandler.playerStats.maxReachNW * Mathf.Cos(Mathf.PI / 4)), statsHandler.playerStats.chestHeight, (float)(transform.position.z + statsHandler.playerStats.maxReachNW * Mathf.Sin(Mathf.PI / 4)))
+        };
+    }
+
+    public void SetSceneCenterBasedOnTracker()
+    {
+        Vector3 offset = chestTracker.transform.position;
+        transform.position = -offset; // This shifts the entire scene based on the chest tracker position
+    }
+
+    void SetNextStandPosition()
+    {
+        if (currentStandPositionIndex >= standPositions.Length)
+        {
+            // Hide all texts and placeholders if calibration is complete
+            foreach (var text in standTexts)
+                text.gameObject.SetActive(false);
+            
+            foreach (var stand in standPlaceholders)
+                stand.SetActive(false);
+
+            confirmPositionButton.gameObject.SetActive(false);
+            return;
+        }
+
+        // Deactivate all stand placeholders and texts
+        for (int i = 0; i < standPlaceholders.Length; i++)
+        {
+            standPlaceholders[i].SetActive(i == currentStandPositionIndex);
+            standTexts[i].gameObject.SetActive(i == currentStandPositionIndex);
+        }
+
+        standPlaceholders[currentStandPositionIndex].transform.position = standPositions[currentStandPositionIndex];
+        standTexts[currentStandPositionIndex].text = "Move the stand here!";
+        confirmPositionButton.onClick.AddListener(ConfirmStandPosition);
+    }
+
+    public void ConfirmStandPosition()
+    {
+        Vector3 trackerPosition = chestTracker.transform.position;
+        switch (currentStandPositionIndex)
+        {
+            case 0:
+                statsHandler.playerStats.maxReachE = trackerPosition.x;
+                break;
+            case 1:
+                statsHandler.playerStats.maxReachNE = trackerPosition.x;
+                break;
+            case 2:
+                statsHandler.playerStats.maxReachN = trackerPosition.z;
+                break;
+            case 3:
+                statsHandler.playerStats.maxReachNW = trackerPosition.x;
+                break;
+        }
+        positionLogger.SavePosition(trackerPosition);
+        Debug.Log($"Confirmed tracker position: {trackerPosition}");
+        currentStandPositionIndex++;
+        SetNextStandPosition();
+
+        confirmPositionButton.onClick.RemoveListener(ConfirmStandPosition);
+    }
+}
