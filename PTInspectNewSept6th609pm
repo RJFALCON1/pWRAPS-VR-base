@@ -1,0 +1,116 @@
+public class PTInspectManager : MonoBehaviour
+{
+    [Header("Stand Placeholders")]
+    public GameObject[] standPlaceholders; 
+
+    [Header("Text Instructions")]
+    public TextMeshPro[] standTexts;
+
+    [Header("Confirmation Button")]
+    public Button confirmPositionButton;
+
+    [Header("Position Logger")]
+    public PositionLogger positionLogger;
+
+    [Header("Patient Data")]
+    public StatsHandler statsHandler;
+
+    [Header("Tracker")]
+    public GameObject chestTracker;
+
+    private int currentStandPositionIndex = 0;
+    public Vector3[] standPositions;
+
+    void Start()
+    {
+        SetStandPositionsBasedOnChestTracker();
+        SetNextStandPosition();
+    }
+
+    // Function to calculate the 2D point on a circle's circumference
+    Vector3 CalculateCircumferencePoint(Vector3 center, float radius, float angleInDegrees)
+    {
+        // Convert angle to radians
+        float angleInRadians = angleInDegrees * Mathf.Deg2Rad;
+
+        // Calculate x and z positions (2D space, assuming y is constant)
+        float x = center.x + radius * Mathf.Cos(angleInRadians);
+        float z = center.z + radius * Mathf.Sin(angleInRadians);
+
+        return new Vector3(x, center.y, z);  // y-axis remains unchanged
+    }
+
+    // Method to set up the 4 stand positions based on the chest tracker and arm length
+    void SetStandPositionsBasedOnChestTracker()
+    {
+        Vector3 chestPosition = chestTracker.transform.position;
+        float armLength = statsHandler.playerStats.armLength;  // Get arm length from StatsHandler
+
+        // Calculate four points at 45, 90, 135, and 180 degrees relative to the chest tracker
+        standPositions = new Vector3[]
+        {
+            CalculateCircumferencePoint(chestPosition, armLength, 45),  // 45°
+            CalculateCircumferencePoint(chestPosition, armLength, 90),  // 90°
+            CalculateCircumferencePoint(chestPosition, armLength, 135), // 135°
+            CalculateCircumferencePoint(chestPosition, armLength, 180)  // 180°
+        };
+    }
+
+    // Function to set the next stand position in the array
+    void SetNextStandPosition()
+    {
+        if (currentStandPositionIndex >= standPositions.Length)
+        {
+            // When all positions have been visited
+            foreach (var text in standTexts)
+                text.gameObject.SetActive(false);
+
+            standTexts[0].text = "Calibration Complete!";
+            confirmPositionButton.gameObject.SetActive(false);
+            return;
+        }
+
+        for (int i = 0; i < standPlaceholders.Length; i++)
+        {
+            // Only activate the placeholder at the current index
+            standPlaceholders[i].SetActive(i == currentStandPositionIndex);
+            standTexts[i].gameObject.SetActive(i == currentStandPositionIndex);
+        }
+
+        // Move the placeholder to the calculated stand position
+        standPlaceholders[currentStandPositionIndex].transform.position = standPositions[currentStandPositionIndex];
+        standTexts[currentStandPositionIndex].text = "Move the stand here!";
+        confirmPositionButton.onClick.AddListener(ConfirmStandPosition);
+    }
+
+    // Function to confirm the stand's position
+    public void ConfirmStandPosition()
+    {
+        Vector3 trackerPosition = chestTracker.transform.position;
+
+        // Adjust stats based on the current stand position
+        switch (currentStandPositionIndex)
+        {
+            case 0:
+                statsHandler.playerStats.maxReachE = trackerPosition.x;
+                break;
+            case 1:
+                statsHandler.playerStats.maxReachNE = trackerPosition.x;
+                break;
+            case 2:
+                statsHandler.playerStats.maxReachN = trackerPosition.z;
+                break;
+            case 3:
+                statsHandler.playerStats.maxReachNW = trackerPosition.x;
+                break;
+        }
+
+        positionLogger.SavePosition(trackerPosition);
+        Debug.Log($"Confirmed tracker position: {trackerPosition}");
+
+        currentStandPositionIndex++;
+        SetNextStandPosition();
+
+        confirmPositionButton.onClick.RemoveListener(ConfirmStandPosition);
+    }
+}
