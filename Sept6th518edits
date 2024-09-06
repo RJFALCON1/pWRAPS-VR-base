@@ -1,0 +1,122 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
+
+public class PTInspectManager : MonoBehaviour
+{
+    [Header("Stand Placeholder")]
+    public GameObject standPlaceholder;
+    public TextMeshPro standText;
+
+    [Header("Stand Placeholders")]
+    public GameObject[] standPlaceholders;
+
+    [Header("Text Instructions")]
+    public TextMeshPro[] standTexts;
+
+    [Header("Confirmation Button")]
+    public Button confirmPositionButton;
+
+    [Header("Position Logger")]
+    public PositionLogger positionLogger;
+
+    [Header("Patient Data")]
+    public StatsHandler statsHandler;
+
+    [Header("Tracker")]
+    public GameObject chestTracker;
+
+    private int currentStandPositionIndex = 0;
+    public Vector3[] standPositions;
+
+    void Start()
+    {
+        InitializeStandPositions();
+        SetNextStandPosition();
+    }
+
+    void InitializeStandPositions()
+    {
+        // Adjust the stand positions based on player’s max reach, ensuring it's reachable
+        standPositions = new Vector3[]
+        {
+            new Vector3(chestTracker.transform.position.x + statsHandler.playerStats.maxReachE, statsHandler.playerStats.chestHeight, chestTracker.transform.position.z),
+            new Vector3(chestTracker.transform.position.x + statsHandler.playerStats.maxReachNE * Mathf.Cos(Mathf.PI / 4), statsHandler.playerStats.chestHeight, chestTracker.transform.position.z + statsHandler.playerStats.maxReachNE * Mathf.Sin(Mathf.PI / 4)),
+            new Vector3(chestTracker.transform.position.x, statsHandler.playerStats.chestHeight, chestTracker.transform.position.z + statsHandler.playerStats.maxReachN),
+            new Vector3(chestTracker.transform.position.x - statsHandler.playerStats.maxReachNW * Mathf.Cos(Mathf.PI / 4), statsHandler.playerStats.chestHeight, chestTracker.transform.position.z + statsHandler.playerStats.maxReachNW * Mathf.Sin(Mathf.PI / 4))
+        };
+    }
+
+    public void SetSceneCenterBasedOnTracker()
+    {
+        // Dynamically adjust the center of the scene to the chest tracker position
+        Vector3 offset = chestTracker.transform.position;
+        transform.position = -offset;
+    }
+
+    void SetNextStandPosition()
+    {
+        // Check if all positions have been used
+        if (currentStandPositionIndex >= standPositions.Length)
+        {
+            foreach (var text in standTexts)
+                text.gameObject.SetActive(false);
+
+            standText.text = "Calibration Complete!";
+            confirmPositionButton.gameObject.SetActive(false);
+            return;
+        }
+
+        // Ensure the current stand placeholder and text are active and correctly positioned
+        for (int i = 0; i < standPlaceholders.Length; i++)
+        {
+            standPlaceholders[i].SetActive(i == currentStandPositionIndex);
+            standTexts[i].gameObject.SetActive(i == currentStandPositionIndex);
+        }
+
+        // Set the position of the stand placeholder
+        standPlaceholders[currentStandPositionIndex].transform.position = standPositions[currentStandPositionIndex];
+
+        // Position the text above the stand placeholder
+        Vector3 textPosition = standPlaceholders[currentStandPositionIndex].transform.position;
+        textPosition.y += 0.2f; // Adjust this value to ensure the text is slightly above the stand
+        standTexts[currentStandPositionIndex].transform.position = textPosition;
+
+        standTexts[currentStandPositionIndex].text = "Move the stand here!";
+        confirmPositionButton.onClick.AddListener(ConfirmStandPosition);
+    }
+
+    public void ConfirmStandPosition()
+    {
+        // Confirm the position based on the chest tracker
+        Vector3 trackerPosition = chestTracker.transform.position;
+
+        // Update player's max reach in StatsHandler depending on the current stand position
+        switch (currentStandPositionIndex)
+        {
+            case 0:
+                statsHandler.playerStats.maxReachE = trackerPosition.x - chestTracker.transform.position.x;
+                break;
+            case 1:
+                statsHandler.playerStats.maxReachNE = trackerPosition.x - chestTracker.transform.position.x;
+                break;
+            case 2:
+                statsHandler.playerStats.maxReachN = trackerPosition.z - chestTracker.transform.position.z;
+                break;
+            case 3:
+                statsHandler.playerStats.maxReachNW = trackerPosition.x - chestTracker.transform.position.x;
+                break;
+        }
+
+        positionLogger.SavePosition(trackerPosition);
+        Debug.Log($"Confirmed tracker position: {trackerPosition}");
+
+        currentStandPositionIndex++;
+        SetNextStandPosition();
+
+        // Remove listener to avoid repeated event registration
+        confirmPositionButton.onClick.RemoveListener(ConfirmStandPosition);
+    }
+}
